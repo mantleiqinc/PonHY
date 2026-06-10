@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PoNHy — Natural Hydrogen Explorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --panel: #111827;
+    --border: #1e2d45;
+    --accent: #22d3ee;
+    --accent2: #f59e0b;
+    --accent3: #4ade80;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --danger: #f87171;
+    --font-mono: 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #0b1120 0%, #0f1f38 50%, #071219 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 80% 50%, rgba(34,211,238,.07) 0%, transparent 70%);
+  }
+  .header-row { display: flex; align-items: flex-start; gap: 20px; position: relative; }
+  .logo-badge {
+    background: linear-gradient(135deg, var(--accent), #0ea5e9);
+    border-radius: 12px; padding: 10px 16px;
+    font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #0b0f1a;
+    flex-shrink: 0;
+  }
+  .header-text h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  .header-text h1 span { color: var(--accent); }
+  .header-text p { color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+  .tagline {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;
+  }
+  .tag {
+    background: rgba(34,211,238,.1); border: 1px solid rgba(34,211,238,.2);
+    border-radius: 20px; padding: 3px 11px; font-size: 11.5px; color: var(--accent);
+    font-weight: 500;
+  }
+  /* ── Nav ── */
+  nav {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    display: flex; gap: 0; overflow-x: auto;
+  }
+  .nav-btn {
+    padding: 13px 22px; background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all .2s; white-space: nowrap;
+  }
+  .nav-btn:hover { color: var(--text); background: rgba(255,255,255,.04); }
+  .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  /* ── Layout ── */
+  .container { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  /* ── Cards ── */
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px;
+  }
+  .card-header {
+    font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .card-header .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .card h2 { font-size: 17px; font-weight: 600; margin-bottom: 14px; }
+  /* ── Canvas ── */
+  .chart-wrap { position: relative; }
+  canvas { max-width: 100%; }
+  /* ── Controls ── */
+  .ctrl-row { display: flex; flex-direction: column; gap: 14px; }
+  .ctrl-item label {
+    display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500;
+  }
+  .ctrl-item label span { color: var(--accent); font-family: var(--font-mono); font-weight: 700; }
+  input[type=range] {
+    width: 100%; appearance: none; height: 5px; border-radius: 3px;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--pct,50%), var(--border) var(--pct,50%));
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--bg); cursor: pointer;
+  }
+  select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 12px; border-radius: 7px; font-size: 13px;
+  }
+  /* ── KPI cards ── */
+  .kpi { padding: 16px 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .kpi-value { font-size: 26px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .kpi-unit { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .kpi.accent .kpi-value { color: var(--accent); }
+  .kpi.gold .kpi-value { color: var(--accent2); }
+  .kpi.green .kpi-value { color: var(--accent3); }
+  /* ── Heatmap canvas ── */
+  #heatmapCanvas { width: 100%; height: 280px; border-radius: 8px; display: block; }
+  /* ── Sections ── */
+  .section { display: none; }
+  .section.active { display: block; }
+  /* ── MC bars ── */
+  .mc-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;
+  }
+  /* ── Tooltip ── */
+  #tooltip {
+    position: fixed; background: #1e2d45; border: 1px solid var(--accent);
+    border-radius: 8px; padding: 10px 14px; font-size: 12px; pointer-events: none;
+    display: none; z-index: 1000; color: var(--text); min-width: 140px;
+  }
+  #tooltip strong { color: var(--accent); display: block; margin-bottom: 4px; }
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border); background: var(--panel);
+    text-align: center; padding: 18px; font-size: 12px; color: var(--muted); margin-top: 48px;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .mc-summary { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<header>
+  <div class="header-row">
+    <div class="logo-badge">PoNHy</div>
+    <div class="header-text">
+      <h1>Potential for <span>Natural Hydrogen</span> Explorer</h1>
+      <p>Interactive implementation of the PoNHy framework — thermodynamic databases, serpentinization physics, and Monte Carlo H₂ estimation</p>
+      <div class="tagline">
+        <span class="tag">LH1 Lherzolite</span>
+        <span class="tag">HZ1 Harzburgite</span>
+        <span class="tag">Pyrenees Case Study</span>
+        <span class="tag">KK-PR EOS Solubility</span>
+        <span class="tag">Monte Carlo</span>
+        <span class="tag">github.com/RodolfoChristiansen/PoNHy</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <button class="nav-btn active" onclick="showSection('thermo')">🗄 Thermodynamic DB</button>
+  <button class="nav-btn" onclick="showSection('serp')">⬡ Serpentinization</button>
+  <button class="nav-btn" onclick="showSection('solub')">💧 H₂ Solubility</button>
+  <button class="nav-btn" onclick="showSection('mc')">🎲 Monte Carlo</button>
+  <button class="nav-btn" onclick="showSection('calc')">⚡ H₂ Estimator</button>
+</nav>
+
+<!-- ═══════════════════ SECTION 1: THERMODYNAMIC DB ═══════════════════ -->
+<div id="sec-thermo" class="section active">
+<div class="container">
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><div class="dot" style="background:var(--accent)"></div>H₂ Production vs Temperature</div>
+      <div class="ctrl-row" style="margin-bottom:14px">
+        <div class="ctrl-item">
+          <label>Water/Rock ratio: <span id="wr-label">0.16</span></label>
+          <input type="range" id="wr-slider" min="0" max="10" step="1" value="8"
+            oninput="updateWR(this)">
+        </div>
+        <div class="ctrl-item">
+          <label>Pressure (at fixed P ≈ 51 MPa) — select W/R above</label>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-wr"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="dot" style="background:var(--accent2)"></div>H₂ Heatmap — Temperature × Pressure (W/R=0.16)</div>
+      <canvas id="heatmapCanvas"></canvas>
+      <p style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">
+        H₂ production (mol/kg rock) — LH1 Lherzolite — hover for values
+      </p>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="kpi accent">
+      <div class="kpi-label">Peak H₂ in DB</div>
+      <div class="kpi-value">0.304</div>
+      <div class="kpi-unit">mol/kg rock (LH1)</div>
+    </div>
+    <div class="kpi gold">
+      <div class="kpi-label">Optimal T window</div>
+      <div class="kpi-value">100–300 °C</div>
+      <div class="kpi-unit">serpentinization temperature</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">W/R threshold</div>
+      <div class="kpi-value">≥ 0.10</div>
+      <div class="kpi-unit">minimum for significant H₂ output</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><div class="dot" style="background:var(--accent3)"></div>About the Thermodynamic Database</div>
+    <p style="font-size:13.5px; line-height:1.7; color:#94a3b8;">
+      The PoNHy thermodynamic database is stored as <strong style="color:var(--accent)">Zarr arrays</strong> in <code style="background:#1e2d45;padding:2px 6px;border-radius:4px">DB0/{rock_code}_all/</code>.
+      Each array has dimensions <strong>pressure</strong> (10–40,010 bar), <strong>temperature</strong> (0–1450 °C), and <strong>W/R ratio</strong> (0–0.2),
+      and stores 19 thermodynamic fields including <code style="background:#1e2d45;padding:2px 6px;border-radius:4px">mol_kg_H2</code>, <code style="background:#1e2d45;padding:2px 6px;border-radius:4px">rho_H2</code>, <code style="background:#1e2d45;padding:2px 6px;border-radius:4px">V_H2</code>, and solubility metrics.
+      Two rock lithologies are included: <strong style="color:var(--accent2)">HZ1 (Harzburgite)</strong> and <strong style="color:var(--accent)">LH1 (Lherzolite)</strong>.
+      The chart above uses the <em>mol_kg_H2</em> field at a fixed pressure of ~51 MPa.
+    </p>
+    <pre style="margin-top:14px;background:#0b0f1a;padding:14px;border-radius:8px;font-size:12px;color:#67e8f9;overflow-x:auto">
+import xarray as xr
+ds  = xr.open_zarr("Data_Pyrenees/DB0/LH1_all/LH1_xarray_glpro_all.zarr")
+da  = ds["__xarray_dataarray_variable__"]   # dims: (pressure, temperature, w2r, fields)
+h2  = da.sel(pressure=5000, method="nearest",   # ~500 MPa
+             temperature=300, method="nearest",
+             w2r=0.16, fields="mol_kg_H2")
+print(f"H₂ at 300°C / 500 MPa / W:R=0.16 → {float(h2.values):.4f} mol/kg")</pre>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════ SECTION 2: SERPENTINIZATION ═══════════════════ -->
+<div id="sec-serp" class="section">
+<div class="container">
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><div class="dot" style="background:var(--accent)"></div>Serpentinization Degree Lookup Surface</div>
+      <div class="chart-wrap"><canvas id="chart-serp-scatter"></canvas></div>
+      <p style="font-size:11.5px;color:var(--muted);margin-top:10px">
+        Petrophysical relationships: density–susceptibility pairs map to serpentinization degree (%).
+        100% = fully serpentinized (low ρ, high χ). 0% = pristine mantle (high ρ, low χ).
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="dot" style="background:var(--accent3)"></div>Interactive Serpentinization Estimator</div>
+      <div class="ctrl-row">
+        <div class="ctrl-item">
+          <label>Density contrast (Δρ g/cc): <span id="dens-lbl">-0.20</span></label>
+          <input type="range" id="dens-sl" min="-0.47" max="-0.07" step="0.01" value="-0.20"
+            oninput="updateSerp()">
+        </div>
+        <div class="ctrl-item">
+          <label>Susceptibility (SI): <span id="susc-lbl">0.040</span></label>
+          <input type="range" id="susc-sl" min="0.001" max="0.070" step="0.001" value="0.040"
+            oninput="updateSerp()">
+        </div>
+      </div>
+
+      <div style="margin-top:22px; text-align:center;">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Absolute density → 2.67 + Δρ</div>
+        <div id="abs-dens" style="font-size:18px;font-family:var(--font-mono);color:var(--accent2);margin-bottom:16px">2.47 g/cm³</div>
+
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Estimated serpentinization degree</div>
+        <div id="serp-result" style="font-size:52px; font-weight:900; color:var(--accent3); font-family:var(--font-mono)">—</div>
+        <div style="color:var(--muted);font-size:13px;margin-top:4px">%</div>
+
+        <div id="serp-bar-wrap" style="margin:20px 0;height:14px;background:var(--border);border-radius:7px;overflow:hidden">
+          <div id="serp-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#4ade80,#22d3ee);border-radius:7px;transition:width .3s"></div>
+        </div>
+        <div id="serp-interp" style="font-size:12.5px;color:var(--muted);line-height:1.6"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="dot" style="background:var(--accent2)"></div>How PoNHy computes serpentinization degree</div>
+    <p style="font-size:13.5px; line-height:1.7; color:#94a3b8;">
+      PoNHy uses a <strong style="color:var(--accent)">pre-computed lookup table</strong> that maps joint density–susceptibility pairs to serpentinization degree.
+      The table spans from 100% serpentinized (ρ ≈ 2.62 g/cm³, χ ≈ 0.07 SI) to 0% (ρ ≈ 3.24 g/cm³, χ ≈ 0.001 SI),
+      representing the progressive alteration of olivine-bearing mantle rocks (Harzburgite/Lherzolite) to serpentine minerals.
+      This degree is then used to apply a <em>correction factor</em> to the H₂ production rates from the thermodynamic database.
+    </p>
+    <pre style="margin-top:14px;background:#0b0f1a;padding:14px;border-radius:8px;font-size:12px;color:#67e8f9;overflow-x:auto">
+# From ponhy.py — serpentinization data table
+serpentinization_data = {
+    'x_points': np.array([2.62, 2.6355, ...]),   # density (g/cm³)
+    'y_points': np.array([0.07, 0.0682775, ...]), # susceptibility (SI)
+    'values':   np.array([100., 97.5, ..., 0.])   # serpentinization (%)
+}
+
+# Applied via 2D interpolation on the inversion model outputs
+serp_degree = griddata(
+    np.column_stack([x_points, y_points]),
+    values,
+    np.column_stack([density_cells, magsus_cells]),
+    method='linear'
+)</pre>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════ SECTION 3: SOLUBILITY ═══════════════════ -->
+<div id="sec-solub" class="section">
+<div class="container">
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><div class="dot" style="background:var(--accent)"></div>H₂ Solubility — Kumar-Killingley Peng-Robinson EOS</div>
+      <div class="chart-wrap"><canvas id="chart-solub"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="dot" style="background:#a78bfa)"></div>Interactive Solubility Calculator</div>
+      <div class="ctrl-row">
+        <div class="ctrl-item">
+          <label>Temperature: <span id="sol-T-lbl">300</span> °C</label>
+          <input type="range" id="sol-T" min="50" max="600" step="10" value="300" oninput="updateSolubility()">
+        </div>
+        <div class="ctrl-item">
+          <label>Pressure: <span id="sol-P-lbl">500</span> MPa</label>
+          <input type="range" id="sol-P" min="10" max="2000" step="10" value="500" oninput="updateSolubility()">
+        </div>
+      </div>
+
+      <div style="margin-top:24px; text-align:center;">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">H₂ solubility at selected P, T</div>
+        <div id="solub-result" style="font-size:48px;font-weight:900;color:#a78bfa;font-family:var(--font-mono)">—</div>
+        <div style="color:var(--muted);font-size:13px;margin-top:4px">mol/kg H₂O</div>
+
+        <div style="margin-top:20px; padding:14px; background:rgba(167,139,250,.07); border:1px solid rgba(167,139,250,.15); border-radius:8px;">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Fugacity coefficient (ln φ)</div>
+          <div id="fugacity-result" style="font-size:18px;font-family:var(--font-mono);color:#a78bfa">—</div>
+        </div>
+        <div style="margin-top:12px; padding:14px; background:rgba(34,211,238,.07); border:1px solid rgba(34,211,238,.15); border-radius:8px;">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Lithostatic pressure depth equivalent</div>
+          <div id="depth-result" style="font-size:18px;font-family:var(--font-mono);color:var(--accent)">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="dot" style="background:#a78bfa)"></div>The KK-PR Equation of State (from PoNHy utils/general.py)</div>
+    <pre style="background:#0b0f1a;padding:16px;border-radius:8px;font-size:12px;color:#67e8f9;overflow-x:auto">
+def compute_h2_solubility_kk_pr(p_mpa, t_c):
+    R    = 83.14472          # cm³·bar/(mol·K)
+    T_K  = t_c + 273.15
+    P_bar = p_mpa * 10.0
+    # H₂ critical properties
+    Tc, Pc, omega = 33.19, 13.13, -0.216
+    Tr    = T_K / Tc
+    alpha = (1 + (0.37464 + 1.54226*omega - 0.26992*omega**2) * (1 - np.sqrt(Tr)))**2
+    a     = 0.45724 * (R*Tc)**2 / Pc * alpha
+    b     = 0.07780 * R * Tc / Pc
+    A, B  = a*P_bar/(R*T_K)**2, b*P_bar/(R*T_K)
+    # Cubic: Z³ - (1-B)Z² + (A-3B²-2B)Z - (AB-B²-B³) = 0
+    roots = np.roots([1, -(1-B), (A-3*B**2-2*B), -(A*B-B**2-B**3)])
+    Z     = max(r.real for r in roots if r.imag == 0 and r.real > 0)
+    ln_phi = Z - 1 - np.log(Z-B) - A/(2.828*B) * np.log((Z+2.414*B)/(Z-0.414*B))
+    fugacity = P_bar * np.exp(ln_phi)
+    kH    = np.exp(-4.7982 + 6.3536/Tr + 9.0*np.log(Tr))   # bar
+    return max(fugacity / kH, 0.0)   # mol/kg H₂O</pre>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════ SECTION 4: MONTE CARLO ═══════════════════ -->
+<div id="sec-mc" class="section">
+<div class="container">
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><div class="dot" style="background:var(--accent2)"></div>Monte Carlo H₂ Production — No-Saturation Workflow</div>
+    <div class="ctrl-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px">
+      <div class="ctrl-item">
+        <label>Iterations: <span id="mc-n-lbl">2000</span></label>
+        <input type="range" id="mc-n" min="100" max="5000" step="100" value="2000" oninput="document.getElementById('mc-n-lbl').textContent=this.value">
+      </div>
+      <div class="ctrl-item">
+        <label>Serp. volume (km³): <span id="mc-vol-lbl">2.5</span></label>
+        <input type="range" id="mc-vol" min="0.1" max="20" step="0.1" value="2.5" oninput="document.getElementById('mc-vol-lbl').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <div class="ctrl-item">
+        <label>Mean serp. degree (%): <span id="mc-serp-lbl">45</span></label>
+        <input type="range" id="mc-serp" min="5" max="100" step="5" value="45" oninput="document.getElementById('mc-serp-lbl').textContent=this.value">
+      </div>
+    </div>
+    <button onclick="runMC()" style="background:linear-gradient(135deg,var(--accent),#0ea5e9);color:#0b0f1a;border:none;padding:10px 28px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">
+      ▶ Run Monte Carlo
+    </button>
+  </div>
+
+  <div class="mc-summary" id="mc-stats" style="margin-bottom:20px">
+    <div class="kpi accent"><div class="kpi-label">Mean H₂/yr</div><div class="kpi-value" id="mc-mean">—</div><div class="kpi-unit">tons/yr</div></div>
+    <div class="kpi gold"><div class="kpi-label">Median H₂/yr</div><div class="kpi-value" id="mc-median">—</div><div class="kpi-unit">tons/yr</div></div>
+    <div class="kpi green"><div class="kpi-label">P5</div><div class="kpi-value" id="mc-p5">—</div><div class="kpi-unit">tons/yr (optimistic low)</div></div>
+    <div class="kpi" style="border-color:var(--danger)"><div class="kpi-label">P95</div><div class="kpi-value" id="mc-p95" style="color:var(--danger)">—</div><div class="kpi-unit">tons/yr (optimistic high)</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><div class="dot" style="background:var(--accent)"></div>H₂ Distribution (Histogram)</div>
+      <div class="chart-wrap"><canvas id="chart-mc-hist"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="dot" style="background:var(--accent2)"></div>Sensitivity (Tornado Chart)</div>
+      <div class="chart-wrap"><canvas id="chart-tornado"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><div class="dot" style="background:var(--accent3)"></div>PoNHy MC parameter ranges (from ponhy_config_pyrenees.yaml)</div>
+    <pre style="background:#0b0f1a;padding:14px;border-radius:8px;font-size:12px;color:#67e8f9;overflow-x:auto">
+MC_NO_SATURATION_CONFIG:
+  n_iter:                 5000          # Monte Carlo iterations
+  sampling:               "sobol"       # quasi-random for low variance
+  v_ref_range:            [0.4, 1.6]   # serpentinization front velocity factor
+  prod_rate_range:        [0.5, 1.5]   # H₂ production rate factor
+  volume_range:           [0.8, 1.2]   # serpentinite volume factor
+  serp_correction_range:  [0.8, 1.2]   # serpentinization correction factor
+  surface_area_range:     [0.6, 1.4]   # fracture surface area factor</pre>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════ SECTION 5: H₂ ESTIMATOR ═══════════════════ -->
+<div id="sec-calc" class="section">
+<div class="container">
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><div class="dot" style="background:var(--accent)"></div>H₂ Production Parameters</div>
+      <div class="ctrl-row">
+        <div class="ctrl-item">
+          <label>Temperature (°C): <span id="calc-T-lbl">250</span></label>
+          <input type="range" id="calc-T" min="50" max="400" step="10" value="250" oninput="updateCalc()">
+        </div>
+        <div class="ctrl-item">
+          <label>Pressure (MPa): <span id="calc-P-lbl">200</span></label>
+          <input type="range" id="calc-P" min="10" max="500" step="10" value="200" oninput="updateCalc()">
+        </div>
+        <div class="ctrl-item">
+          <label>W/R ratio: <span id="calc-wr-lbl">0.16</span></label>
+          <input type="range" id="calc-wr" min="0" max="10" step="1" value="8" oninput="updateCalc()">
+        </div>
+        <div class="ctrl-item">
+          <label>Serpentinite volume (km³): <span id="calc-vol-lbl">2.5</span></label>
+          <input type="range" id="calc-vol" min="0.1" max="50" step="0.1" value="2.5" oninput="updateCalc()">
+        </div>
+        <div class="ctrl-item">
+          <label>Serpentinization degree (%): <span id="calc-serp-lbl">45</span></label>
+          <input type="range" id="calc-serp" min="5" max="100" step="5" value="45" oninput="updateCalc()">
+        </div>
+        <div class="ctrl-item">
+          <label>Density of serpentinite (kg/m³): <span id="calc-rho-lbl">2910</span></label>
+          <input type="range" id="calc-rho" min="2500" max="3200" step="10" value="2910" oninput="updateCalc()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;flex-direction:column;gap:14px">
+      <div class="card-header"><div class="dot" style="background:var(--accent3)"></div>Estimated H₂ Output</div>
+
+      <div class="kpi accent">
+        <div class="kpi-label">Thermodynamic H₂ rate (from DB)</div>
+        <div class="kpi-value" id="out-rate">—</div>
+        <div class="kpi-unit">mol / kg rock</div>
+      </div>
+      <div class="kpi gold">
+        <div class="kpi-label">H₂ solubility at P, T</div>
+        <div class="kpi-value" id="out-solub">—</div>
+        <div class="kpi-unit">mol / kg H₂O</div>
+      </div>
+      <div class="kpi green">
+        <div class="kpi-label">Total H₂ production</div>
+        <div class="kpi-value" id="out-total">—</div>
+        <div class="kpi-unit">tons H₂ / year</div>
+      </div>
+      <div class="kpi" style="border-color:#6366f1">
+        <div class="kpi-label">Rock mass (serpentinized portion)</div>
+        <div class="kpi-value" id="out-mass" style="color:#818cf8">—</div>
+        <div class="kpi-unit">billion kg</div>
+      </div>
+
+      <div style="padding:14px;background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.12);border-radius:8px;font-size:12.5px;color:#94a3b8;line-height:1.6">
+        <strong style="color:var(--accent);display:block;margin-bottom:6px">📐 Calculation chain</strong>
+        <code style="background:#0b0f1a;padding:2px 6px;border-radius:3px">H₂ [mol] = DB_rate × ρ_serp × V × serp%</code><br>
+        <code style="background:#0b0f1a;padding:2px 6px;border-radius:3px">H₂ [tons] = H₂[mol] × M_H₂ / 1000</code><br>
+        where M_H₂ = 0.00201588 kg/mol
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="dot" style="background:var(--accent)"></div>Production Rate vs Temperature (at current settings)</div>
+    <div class="chart-wrap"><canvas id="chart-calc-sweep"></canvas></div>
+  </div>
+</div>
+</div>
+
+<footer>
+  PoNHy — Potential for Natural Hydrogen &nbsp;·&nbsp;
+  <a href="https://github.com/RodolfoChristiansen/PoNHy" target="_blank">github.com/RodolfoChristiansen/PoNHy</a>
+  &nbsp;·&nbsp; Developed by Rodolfo Christiansen (LIAG) &nbsp;·&nbsp; MIT License
+</footer>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  EMBEDDED DATA (extracted from LH1 thermodynamic database)
+// ══════════════════════════════════════════════════════════════════
+const DB = {"T_vals": [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400], "P_vals": [1.0, 21.0, 41.0, 61.0, 81.0, 101.0, 121.0, 141.0, 161.0, 181.0, 201.0, 221.0, 241.0, 261.0, 281.0, 301.0, 321.0, 341.0, 361.0, 381.0, 401.0, 421.0, 441.0, 461.0, 481.0], "h2_heatmap": [[0.134979, 0.134979, 0.14186, 0.15002, 0.157443, 0.164194, 0.170339, 0.208198, 0.208957, 0.209489, 0.209977, 0.210492, 0.211033, 0.211594, 0.212171, 0.231758, 0.25012, 0.264784, 0.276567, 0.292466, 0.302627, 0.302975, 0.303348, 0.303747, 0.304161, 0.3046, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.022381, 0.042774, 0.061224, 0.07792, 0.093044, 0.106761, 0.201915, 0.207174, 0.207346, 0.207527, 0.207712, 0.2079, 0.208087, 0.20827, 0.208444, 0.20861, 0.2233, 0.241435, 0.256311, 0.268494, 0.278465, 0.286623, 0.289459, 0.291766, 0.293898, 0.29587, 0.297698, 0.299398, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.015979, 0.03563, 0.053531, 0.069849, 0.084738, 0.098345, 0.192098, 0.202557, 0.207385, 0.207528, 0.207667, 0.207801, 0.207926, 0.208057, 0.209284, 0.229427, 0.246064, 0.259774, 0.270761, 0.274275, 0.277513, 0.280504, 0.283271, 0.285834, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.00947, 0.028817, 0.046521, 0.062732, 0.077592, 0.091235, 0.184152, 0.194709, 0.204323, 0.207514, 0.207622, 0.207732, 0.207848, 0.207966, 0.227445, 0.244166, 0.256677, 0.261047, 0.265078, 0.2688, 0.272244, 0.275434, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011499, 0.030011, 0.047012, 0.062638, 0.077021, 0.090279, 0.181734, 0.192005, 0.201392, 0.207545, 0.207647, 0.207753, 0.210533, 0.22992, 0.243351, 0.248518, 0.253286, 0.257692, 0.261768, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.017711, 0.035186, 0.051288, 0.066142, 0.079865, 0.171501, 0.182212, 0.192026, 0.201025, 0.207614, 0.207715, 0.216405, 0.230283, 0.236222, 0.241705, 0.246773, 0.251464, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.008295, 0.026037, 0.042421, 0.057569, 0.071592, 0.084597, 0.174183, 0.184289, 0.193575, 0.202116, 0.207708, 0.217231, 0.223932, 0.230122, 0.235847, 0.241147, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.000976, 0.018841, 0.035374, 0.05069, 0.064897, 0.078098, 0.16746, 0.177762, 0.187246, 0.195985, 0.204058, 0.211519, 0.218416, 0.224798, 0.230709, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.013131, 0.029716, 0.045109, 0.059415, 0.072733, 0.161746, 0.172171, 0.181787, 0.190681, 0.198905, 0.206512, 0.213556, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.008583, 0.025148, 0.040551, 0.054894, 0.068271, 0.156832, 0.167327, 0.177046, 0.186038, 0.194362, 0.202074, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.004963, 0.021455, 0.036818, 0.051149, 0.06454, 0.152569, 0.163117, 0.172883, 0.181932, 0.190321, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.002096, 0.018476, 0.033761, 0.048046, 0.06142, 0.148873, 0.15942, 0.1692, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.016087, 0.031267, 0.045484, 0.058839, 0.145632, 0.156151, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.014192, 0.029256, 0.043404, 0.0567, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01273, 0.027675, 0.041719, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011648, 0.026446, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], "T_wr": [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400], "h2_wr": {"0.0": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.02": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.04": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.06": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.08": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.1": [0.010623, 0.010664, 0.010709, 0.010759, 0.010813, 0.010871, 0.010933, 0.010998, 0.011067, 0.011139, 0.011213, 0.011288, 0.011364, 0.011439, 0.011513, 0.011583, 0.011649, 0.011709, 0.01176, 0.011804, 0.011837, 0.01187, 0.011903, 0.020063, 0.045369, 0.068057, 0.085995, 0.081375, 0.076825, 0.072351, 0.067962, 0.063663, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.12": [0.152718, 0.152828, 0.15294, 0.153054, 0.153168, 0.153284, 0.153401, 0.153517, 0.153633, 0.153746, 0.153858, 0.153966, 0.154069, 0.154166, 0.154254, 0.154332, 0.154399, 0.163217, 0.180639, 0.195432, 0.208127, 0.219122, 0.228722, 0.237163, 0.244632, 0.251277, 0.256332, 0.253366, 0.250382, 0.247386, 0.244387, 0.24139, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.14": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011216, 0.030817, 0.048715, 0.065069, 0.080028, 0.09373, 0.187173, 0.197751, 0.207363, 0.207514, 0.207635, 0.207751, 0.20787, 0.207993, 0.217984, 0.236463, 0.251736, 0.263574, 0.267527, 0.271171, 0.274537, 0.27765, 0.280534, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.16": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011216, 0.030817, 0.048715, 0.065069, 0.080028, 0.09373, 0.187173, 0.197751, 0.207363, 0.207514, 0.207635, 0.207751, 0.20787, 0.207993, 0.217984, 0.236463, 0.251736, 0.263574, 0.267527, 0.271171, 0.274537, 0.27765, 0.280534, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.18": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011216, 0.030817, 0.048715, 0.065069, 0.080028, 0.09373, 0.187173, 0.197751, 0.207363, 0.207514, 0.207635, 0.207751, 0.20787, 0.207993, 0.217984, 0.236463, 0.251736, 0.263574, 0.267527, 0.271171, 0.274537, 0.27765, 0.280534, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "0.2": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011216, 0.030817, 0.048715, 0.065069, 0.080028, 0.09373, 0.187173, 0.197751, 0.207363, 0.207514, 0.207635, 0.207751, 0.20787, 0.207993, 0.217984, 0.236463, 0.251736, 0.263574, 0.267527, 0.271171, 0.274537, 0.27765, 0.280534, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, "wr_vals": [0.0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2], "serp_x": [2.62, 2.6355, 2.651, 2.6665, 2.682, 2.6975, 2.713, 2.7285, 2.744, 2.7595, 2.775, 2.7905, 2.806, 2.8215, 2.837, 2.8525, 2.868, 2.8835, 2.899, 2.9145, 2.93, 2.9455, 2.961, 2.9765, 2.992, 3.0075, 3.023, 3.0385, 3.054, 3.0695, 3.085, 3.1005, 3.116, 3.1315, 3.147, 3.1625, 3.178, 3.1935, 3.209, 3.2245, 3.24], "serp_y": [0.07, 0.0682775, 0.066555, 0.0648325, 0.06311, 0.0613875, 0.059665, 0.0579425, 0.05622, 0.0544975, 0.052775, 0.0510525, 0.04933, 0.0476075, 0.045885, 0.0441625, 0.04244, 0.0407175, 0.038995, 0.0372725, 0.03555, 0.0338275, 0.032105, 0.0303825, 0.02866, 0.0269375, 0.025215, 0.0234925, 0.02177, 0.0200475, 0.018325, 0.0166025, 0.01488, 0.0131575, 0.011435, 0.0097125, 0.00799, 0.0062675, 0.004545, 0.0028225, 0.0011], "serp_v": [100.0, 97.5, 95.0, 92.5, 90.0, 87.5, 85.0, 82.5, 80.0, 77.5, 75.0, 72.5, 70.0, 67.5, 65.0, 62.5, 60.0, 57.5, 55.0, 52.5, 50.0, 47.5, 45.0, 42.5, 40.0, 37.5, 35.0, 32.5, 30.0, 27.5, 25.0, 22.5, 20.0, 17.5, 15.0, 12.5, 10.0, 7.5, 5.0, 2.5, 0.0]};
+
+// ══════════════════════════════════════════════════════════════════
+//  CHART.JS DEFAULTS
+// ══════════════════════════════════════════════════════════════════
+Chart.defaults.color = '#64748b';
+Chart.defaults.borderColor = '#1e2d45';
+Chart.defaults.font.family = 'Segoe UI, system-ui, sans-serif';
+Chart.defaults.font.size = 11;
+
+const PALETTE = ['#22d3ee','#f59e0b','#4ade80','#f87171','#a78bfa','#fb923c','#34d399','#60a5fa'];
+
+// ══════════════════════════════════════════════════════════════════
+//  SECTION NAVIGATION
+// ══════════════════════════════════════════════════════════════════
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  PHYSICS FUNCTIONS (ported from PoNHy utils/general.py)
+// ══════════════════════════════════════════════════════════════════
+
+// KK-PR EOS for H₂ solubility
+function kkprSolubility(p_mpa, t_c) {
+  const R = 83.14472, T_K = t_c + 273.15, P_bar = p_mpa * 10.0;
+  const Tc = 33.19, Pc = 13.13, omega = -0.216;
+  const Tr = T_K / Tc;
+  const alpha = Math.pow(1 + (0.37464 + 1.54226*omega - 0.26992*omega*omega) * (1 - Math.sqrt(Tr)), 2);
+  const a = 0.45724 * Math.pow(R*Tc,2) / Pc * alpha;
+  const b = 0.07780 * R * Tc / Pc;
+  const A = a * P_bar / Math.pow(R*T_K,2);
+  const B = b * P_bar / (R * T_K);
+  // Solve cubic Z³ - (1-B)Z² + (A-3B²-2B)Z - (AB-B²-B³) = 0
+  const c3 = -(1-B), c2 = A-3*B*B-2*B, c1 = -(A*B-B*B-B*B*B);
+  const Z = solveCubicMax(1, c3, c2, c1);
+  const ln_phi = Z - 1 - Math.log(Z-B) - A/(2.828*B) * Math.log((Z+2.414*B)/(Z-0.414*B));
+  const fugacity = P_bar * Math.exp(ln_phi);
+  const kH = Math.exp(-4.7982 + 6.3536/Tr + 9.0*Math.log(Tr));
+  return {solub: Math.max(fugacity/kH, 0), ln_phi, fugacity};
+}
+
+function solveCubicMax(a, b, c, d) {
+  // Cardano for largest real root
+  const p = (3*a*c - b*b) / (3*a*a);
+  const q = (2*b*b*b - 9*a*b*c + 27*a*a*d) / (27*a*a*a);
+  const D = q*q/4 + p*p*p/27;
+  let roots = [];
+  if (D >= 0) {
+    const u = Math.cbrt(-q/2 + Math.sqrt(D));
+    const v = Math.cbrt(-q/2 - Math.sqrt(D));
+    roots = [u + v - b/(3*a)];
+  } else {
+    const r = Math.sqrt(-p*p*p/27);
+    const theta = Math.acos(-q/(2*r));
+    const m = 2*Math.cbrt(r);
+    roots = [
+      m*Math.cos(theta/3) - b/(3*a),
+      m*Math.cos((theta+2*Math.PI)/3) - b/(3*a),
+      m*Math.cos((theta+4*Math.PI)/3) - b/(3*a)
+    ];
+  }
+  return Math.max(...roots.filter(r => r > 0));
+}
+
+// Serpentinization degree via linear interpolation on the lookup table
+function serpDegree(density_abs, susceptibility) {
+  const xs = DB.serp_x, ys = DB.serp_y, vs = DB.serp_v;
+  // Find nearest points and interpolate
+  let minDist = Infinity, bestI = 0;
+  for (let i = 0; i < xs.length; i++) {
+    const d = Math.pow(xs[i]-density_abs,2) + Math.pow((ys[i]-susceptibility)*10,2);
+    if (d < minDist) { minDist = d; bestI = i; }
+  }
+  // Nearest-neighbor if on edge
+  if (bestI === 0 || bestI === xs.length-1) return vs[bestI];
+  // Linear interpolation along the 1D curve
+  const t = (density_abs - xs[bestI-1]) / (xs[bestI]-xs[bestI-1]);
+  return vs[bestI-1] + t*(vs[bestI]-vs[bestI-1]);
+}
+
+// DB lookup: nearest T, P in heatmap (W/R=0.16)
+function dbLookup_heatmap(T_c, P_mpa) {
+  const Ti = nearestIdx(DB.T_vals, T_c);
+  const Pi = nearestIdx(DB.P_vals, P_mpa);
+  return DB.h2_heatmap[Pi][Ti];
+}
+
+// DB lookup in W/R array (at fixed ~51MPa)
+function dbLookup_wr(T_c, wr) {
+  const wrKey = DB.wr_vals.map(v=>v.toFixed(2));
+  const closest = nearestIdx(DB.wr_vals, wr);
+  const key = DB.wr_vals[closest].toString();
+  const arr = DB.h2_wr[key] || DB.h2_wr['0.16'];
+  return arr[nearestIdx(DB.T_wr, T_c)] || 0;
+}
+
+function nearestIdx(arr, val) {
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < arr.length; i++) {
+    const d = Math.abs(arr[i] - val);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  CHART 1: W/R vs H₂ production
+// ══════════════════════════════════════════════════════════════════
+const wrVals = DB.wr_vals;
+const wrKeys = wrVals.map(v => v.toFixed(2));
+let chartWR;
+
+function updateWR(slider) {
+  const idx = parseInt(slider.value);
+  const wr = wrVals[idx];
+  document.getElementById('wr-label').textContent = wr.toFixed(2);
+  slider.style.setProperty('--pct', (idx/10*100)+'%');
+  const key = wr.toFixed(1) === '0.1' ? '0.1' : wr.toFixed(2);
+  const data = DB.h2_wr[key] || DB.h2_wr['0.16'];
+  chartWR.data.datasets[0].data = data;
+  chartWR.data.datasets[0].label = `W/R = ${wr.toFixed(2)}`;
+  chartWR.update();
+}
+
+function initChartWR() {
+  const ctx = document.getElementById('chart-wr').getContext('2d');
+  const data016 = DB.h2_wr['0.16'];
+  chartWR = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: DB.T_wr,
+      datasets: [{
+        label: 'W/R = 0.16',
+        data: data016,
+        borderColor: '#22d3ee',
+        backgroundColor: 'rgba(34,211,238,.1)',
+        fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#94a3b8' } },
+        tooltip: { callbacks: { label: ctx => `H₂: ${ctx.parsed.y.toFixed(5)} mol/kg` }}
+      },
+      scales: {
+        x: { title: { display: true, text: 'Temperature (°C)', color: '#64748b' }, grid: { color: '#1e2d45' } },
+        y: { title: { display: true, text: 'H₂ production (mol/kg rock)', color: '#64748b' }, grid: { color: '#1e2d45' }, min: 0 }
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  HEATMAP (Canvas 2D)
+// ══════════════════════════════════════════════════════════════════
+function drawHeatmap() {
+  const canvas = document.getElementById('heatmapCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = 280 * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const W = canvas.offsetWidth, H = 280;
+  const data = DB.h2_heatmap;
+  const nP = data.length, nT = data[0].length;
+  const maxVal = 0.305;
+  const cw = W / nT, ch = H / nP;
+
+  function valToColor(v) {
+    if (v === 0) return '#0b0f1a';
+    const t = Math.min(v / maxVal, 1);
+    // Black → cyan → yellow → white
+    if (t < 0.5) {
+      const f = t*2;
+      return `rgb(${Math.round(f*34)},${Math.round(f*211)},${Math.round(f*238)})`;
+    } else {
+      const f = (t-0.5)*2;
+      return `rgb(${Math.round(34+f*(245-34))},${Math.round(211+f*(255-211))},${Math.round(238+f*(100-238))})`;
+    }
+  }
+
+  for (let pi = 0; pi < nP; pi++) {
+    for (let ti = 0; ti < nT; ti++) {
+      const v = data[pi][ti];
+      ctx.fillStyle = valToColor(v);
+      ctx.fillRect(ti*cw, (nP-1-pi)*ch, cw+1, ch+1);
+    }
+  }
+
+  // Axes labels
+  ctx.fillStyle = '#64748b'; ctx.font = '10px Segoe UI';
+  // X axis (Temperature)
+  [0, 100, 200, 300, 400].forEach(T => {
+    const ti = nearestIdx(DB.T_vals, T);
+    const x = ti * cw;
+    ctx.fillText(T+'°C', x, H-4);
+  });
+  // Y axis (Pressure) — on right
+  DB.P_vals.forEach((p, pi) => {
+    if (pi % 5 === 0) {
+      const y = (nP-1-pi)*ch;
+      ctx.fillText(Math.round(p)+'MPa', W-52, y+10);
+    }
+  });
+
+  // Colorbar
+  const cbX = 8, cbY = 10, cbH = H-30, cbW = 10;
+  for (let y = 0; y < cbH; y++) {
+    const t = 1 - y/cbH;
+    ctx.fillStyle = valToColor(t*maxVal);
+    ctx.fillRect(cbX, cbY+y, cbW, 1);
+  }
+  ctx.strokeStyle='#1e2d45'; ctx.lineWidth=1;
+  ctx.strokeRect(cbX, cbY, cbW, cbH);
+  ctx.fillStyle='#64748b'; ctx.font='9px Segoe UI';
+  ctx.fillText('0.30', cbX+cbW+2, cbY+8);
+  ctx.fillText('0.15', cbX+cbW+2, cbY+cbH/2+4);
+  ctx.fillText('0.00', cbX+cbW+2, cbY+cbH+4);
+
+  // Hover
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const ti = Math.floor(mx / cw), pi = nP-1-Math.floor(my / ch);
+    if (ti>=0 && ti<nT && pi>=0 && pi<nP) {
+      const v = data[pi][ti];
+      const tooltip = document.getElementById('tooltip');
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX+14)+'px';
+      tooltip.style.top  = (e.clientY-10)+'px';
+      tooltip.innerHTML = `<strong>H₂ production</strong>T = ${DB.T_vals[ti]}°C<br>P = ${DB.P_vals[pi]} MPa<br>H₂ = ${v.toFixed(5)} mol/kg`;
+    }
+  };
+  canvas.onmouseleave = () => { document.getElementById('tooltip').style.display='none'; };
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SERPENTINIZATION CHART
+// ══════════════════════════════════════════════════════════════════
+function initSerpChart() {
+  const ctx = document.getElementById('chart-serp-scatter').getContext('2d');
+  const colors = DB.serp_v.map(v => {
+    const t = v/100;
+    return `rgba(${Math.round(34+t*(74-34))},${Math.round(211*t+30*(1-t))},${Math.round(238*t+100*(1-t))},0.85)`;
+  });
+  new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Serpentinization %',
+        data: DB.serp_x.map((x,i) => ({x, y: DB.serp_y[i], v: DB.serp_v[i]})),
+        backgroundColor: colors,
+        pointRadius: 9, pointHoverRadius: 12
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          label: ctx => {
+            const d = ctx.raw;
+            return [`ρ = ${d.x.toFixed(4)} g/cm³`, `χ = ${d.y.toFixed(5)} SI`, `Serp = ${d.v}%`];
+          }
+        }}
+      },
+      scales: {
+        x: { title: { display: true, text: 'Density (g/cm³)', color: '#64748b' }, grid: { color: '#1e2d45' } },
+        y: { title: { display: true, text: 'Magnetic susceptibility (SI)', color: '#64748b' }, grid: { color: '#1e2d45' } }
+      }
+    }
+  });
+}
+
+function updateSerp() {
+  const delta = parseFloat(document.getElementById('dens-sl').value);
+  const susc  = parseFloat(document.getElementById('susc-sl').value);
+  const abs_dens = 2.67 + delta;
+  document.getElementById('dens-lbl').textContent = delta.toFixed(2);
+  document.getElementById('susc-lbl').textContent = susc.toFixed(3);
+  document.getElementById('abs-dens').textContent = abs_dens.toFixed(3) + ' g/cm³';
+  // Interp
+  const sd = serpDegree(abs_dens, susc);
+  const sdStr = isNaN(sd) ? '—' : sd.toFixed(1);
+  document.getElementById('serp-result').textContent = isNaN(sd) ? '—' : Math.round(sd);
+  document.getElementById('serp-bar').style.width = (isNaN(sd) ? 0 : sd) + '%';
+  const interp = abs_dens < 2.62 ? 'Density below lookup range (fully serpentinized)' :
+                 abs_dens > 3.24 ? 'Density above lookup range (unaltered mantle)' :
+                 sd > 70 ? 'Highly serpentinized — strong H₂ potential' :
+                 sd > 30 ? 'Moderately serpentinized — partial H₂ potential' :
+                 'Low serpentinization — limited H₂ potential';
+  document.getElementById('serp-interp').textContent = interp;
+  // Adjust slider bg
+  const dens_pct = ((delta - (-0.47)) / ((-0.07) - (-0.47)) * 100).toFixed(1);
+  const susc_pct = ((susc - 0.001) / (0.070 - 0.001) * 100).toFixed(1);
+  document.getElementById('dens-sl').style.setProperty('--pct', dens_pct+'%');
+  document.getElementById('susc-sl').style.setProperty('--pct', susc_pct+'%');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SOLUBILITY CHART
+// ══════════════════════════════════════════════════════════════════
+let chartSolub;
+function initSolubChart() {
+  const ctx = document.getElementById('chart-solub').getContext('2d');
+  const Ts = [50,75,100,125,150,175,200,225,250,275,300,325,350,400,450,500];
+  const Ps = [10, 50, 100, 200, 300, 500, 750, 1000];
+  const datasets = Ps.map((p,i) => ({
+    label: `${p} MPa`,
+    data: Ts.map(T => kkprSolubility(p,T).solub),
+    borderColor: PALETTE[i % PALETTE.length],
+    fill: false, tension: 0.4, pointRadius: 2, borderWidth: 2
+  }));
+  chartSolub = new Chart(ctx, {
+    type: 'line',
+    data: { labels: Ts, datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color:'#94a3b8', boxWidth:20 } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(4)} mol/kg` }}},
+      scales: {
+        x: { title: { display:true, text:'Temperature (°C)', color:'#64748b' }, grid:{color:'#1e2d45'} },
+        y: { title: { display:true, text:'H₂ solubility (mol/kg H₂O)', color:'#64748b' }, grid:{color:'#1e2d45'} }
+      }
+    }
+  });
+}
+
+function updateSolubility() {
+  const T = parseInt(document.getElementById('sol-T').value);
+  const P = parseInt(document.getElementById('sol-P').value);
+  document.getElementById('sol-T-lbl').textContent = T;
+  document.getElementById('sol-P-lbl').textContent = P;
+  document.getElementById('sol-T').style.setProperty('--pct', ((T-50)/550*100).toFixed(1)+'%');
+  document.getElementById('sol-P').style.setProperty('--pct', ((P-10)/1990*100).toFixed(1)+'%');
+  const {solub, ln_phi} = kkprSolubility(P, T);
+  document.getElementById('solub-result').textContent = solub.toFixed(5);
+  document.getElementById('fugacity-result').textContent = 'ln φ = ' + ln_phi.toFixed(4);
+  const depth_km = (P * 1e6 / (2700 * 9.81 / 1000)).toFixed(1);
+  document.getElementById('depth-result').textContent = `≈ ${depth_km} m depth`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  MONTE CARLO
+// ══════════════════════════════════════════════════════════════════
+let chartHist, chartTornado;
+
+function initMCCharts() {
+  const hCtx = document.getElementById('chart-mc-hist').getContext('2d');
+  chartHist = new Chart(hCtx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label:'H₂ output (tons/yr)', data:[], backgroundColor:'rgba(34,211,238,.5)', borderColor:'#22d3ee', borderWidth:1 }] },
+    options: {
+      responsive: true,
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label: c=>`Count: ${c.parsed.y}`}} },
+      scales: {
+        x: { title:{display:true,text:'H₂ production (tons/yr)',color:'#64748b'}, grid:{color:'#1e2d45'} },
+        y: { title:{display:true,text:'Count',color:'#64748b'}, grid:{color:'#1e2d45'} }
+      }
+    }
+  });
+
+  const tCtx = document.getElementById('chart-tornado').getContext('2d');
+  chartTornado = new Chart(tCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Prod. rate', 'Serp. volume', 'Serp. degree'],
+      datasets: [
+        { label:'Low factor', data:[], backgroundColor:'rgba(248,113,113,.65)', borderColor:'#f87171', borderWidth:1 },
+        { label:'High factor', data:[], backgroundColor:'rgba(34,211,238,.65)', borderColor:'#22d3ee', borderWidth:1 }
+      ]
+    },
+    options: {
+      indexAxis: 'y', responsive: true,
+      plugins: { legend:{ labels:{color:'#94a3b8'} }, tooltip:{callbacks:{label:c=>`Δ ${c.parsed.x.toFixed(0)} tons/yr`}} },
+      scales: {
+        x: { title:{display:true,text:'Change from baseline (tons/yr)',color:'#64748b'}, grid:{color:'#1e2d45'} },
+        y: { grid:{color:'#1e2d45'} }
+      }
+    }
+  });
+}
+
+function runMC() {
+  const N = parseInt(document.getElementById('mc-n').value);
+  const BASE_RATE = 0.207;  // mol/kg at ~200°C
+  const BASE_VOL  = parseFloat(document.getElementById('mc-vol').value);
+  const BASE_SERP = parseInt(document.getElementById('mc-serp').value);
+  const RHO = 2910, M_H2 = 0.00201588;
+
+  const RANGES = {prod:[0.5,1.5], vol:[0.8,1.2], serp:[0.8,1.2]};
+
+  function h2(fp, fv, fs) {
+    const mass = BASE_VOL*fv*1e9 * RHO * (BASE_SERP*fs/100);
+    return BASE_RATE*fp * mass * M_H2 / 1e3;
+  }
+
+  const results = [];
+  for (let i=0; i<N; i++) {
+    results.push(h2(
+      RANGES.prod[0] + Math.random()*(RANGES.prod[1]-RANGES.prod[0]),
+      RANGES.vol[0] + Math.random()*(RANGES.vol[1]-RANGES.vol[0]),
+      RANGES.serp[0] + Math.random()*(RANGES.serp[1]-RANGES.serp[0])
+    ));
+  }
+  results.sort((a,b) => a-b);
+
+  const mean = results.reduce((s,v)=>s+v,0)/N;
+  const median = results[Math.floor(N/2)];
+  const p5  = results[Math.floor(N*0.05)];
+  const p95 = results[Math.floor(N*0.95)];
+
+  document.getElementById('mc-mean').textContent = mean.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('mc-median').textContent = median.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('mc-p5').textContent = p5.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('mc-p95').textContent = p95.toLocaleString('en-US',{maximumFractionDigits:0});
+
+  // Histogram
+  const nBins = 30, mn = results[0], mx = results[N-1], bw = (mx-mn)/nBins;
+  const bins = Array(nBins).fill(0);
+  const binLabels = [];
+  for (let b=0; b<nBins; b++) binLabels.push((mn+b*bw).toFixed(0));
+  results.forEach(v => { const b = Math.min(Math.floor((v-mn)/bw), nBins-1); bins[b]++; });
+  chartHist.data.labels = binLabels;
+  chartHist.data.datasets[0].data = bins;
+  chartHist.update();
+
+  // Tornado
+  const baseline = h2(1,1,1);
+  const lows  = [h2(0.5,1,1)-baseline, h2(1,0.8,1)-baseline, h2(1,1,0.8)-baseline];
+  const highs = [h2(1.5,1,1)-baseline, h2(1,1.2,1)-baseline, h2(1,1,1.2)-baseline];
+  chartTornado.data.datasets[0].data = lows;
+  chartTornado.data.datasets[1].data = highs;
+  chartTornado.update();
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  H₂ ESTIMATOR (section 5)
+// ══════════════════════════════════════════════════════════════════
+const WR_MAP = [0,0.02,0.04,0.06,0.08,0.1,0.12,0.14,0.16,0.18,0.2];
+let chartCalcSweep;
+
+function initCalcSweep() {
+  const ctx = document.getElementById('chart-calc-sweep').getContext('2d');
+  chartCalcSweep = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: DB.T_vals,
+      datasets: [{
+        label: 'H₂ rate from DB (mol/kg)',
+        data: DB.h2_heatmap[10],
+        borderColor: '#22d3ee', fill: true,
+        backgroundColor: 'rgba(34,211,238,.1)', tension: 0.4, pointRadius: 0, borderWidth: 2
+      },{
+        label: 'H₂ total (kilotons/yr)',
+        data: DB.h2_heatmap[10].map(v=>0),
+        borderColor: '#4ade80', fill: false,
+        borderDash: [6,3], tension: 0.4, pointRadius: 0, borderWidth: 2,
+        yAxisID: 'y2'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels:{color:'#94a3b8'} } },
+      scales: {
+        x: { title:{display:true,text:'Temperature (°C)',color:'#64748b'}, grid:{color:'#1e2d45'} },
+        y: { title:{display:true,text:'H₂ rate (mol/kg)',color:'#64748b'}, grid:{color:'#1e2d45'}, min:0 },
+        y2: { title:{display:true,text:'Total H₂ (kt/yr)',color:'#4ade80'}, position:'right', min:0, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function updateCalc() {
+  const T = parseInt(document.getElementById('calc-T').value);
+  const P = parseInt(document.getElementById('calc-P').value);
+  const wrIdx = parseInt(document.getElementById('calc-wr').value);
+  const wr = WR_MAP[wrIdx];
+  const vol = parseFloat(document.getElementById('calc-vol').value);
+  const serp = parseInt(document.getElementById('calc-serp').value);
+  const rho = parseInt(document.getElementById('calc-rho').value);
+  const M_H2 = 0.00201588;
+
+  document.getElementById('calc-T-lbl').textContent = T;
+  document.getElementById('calc-P-lbl').textContent = P;
+  document.getElementById('calc-wr-lbl').textContent = wr.toFixed(2);
+  document.getElementById('calc-vol-lbl').textContent = vol.toFixed(1);
+  document.getElementById('calc-serp-lbl').textContent = serp;
+  document.getElementById('calc-rho-lbl').textContent = rho;
+
+  // Set slider backgrounds
+  ['calc-T','calc-P','calc-wr','calc-vol','calc-serp','calc-rho'].forEach(id => {
+    const el = document.getElementById(id);
+    const pct = ((el.value - el.min) / (el.max - el.min) * 100).toFixed(1);
+    el.style.setProperty('--pct', pct+'%');
+  });
+
+  const h2_rate = dbLookup_heatmap(T, P);
+  const {solub} = kkprSolubility(P, T);
+  const mass_kg = vol*1e9 * rho * (serp/100);
+  const tons = h2_rate * mass_kg * M_H2 / 1e3;
+
+  document.getElementById('out-rate').textContent = h2_rate.toFixed(5);
+  document.getElementById('out-solub').textContent = solub.toFixed(5);
+  document.getElementById('out-total').textContent = tons.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('out-mass').textContent = (mass_kg/1e9).toFixed(3);
+
+  // Update sweep chart at current P
+  const Pi = nearestIdx(DB.P_vals, P);
+  const rates = DB.h2_heatmap[Pi];
+  const totals = rates.map(r => r * mass_kg * M_H2 / 1e6); // kilotons
+  chartCalcSweep.data.datasets[0].data = rates;
+  chartCalcSweep.data.datasets[1].data = totals;
+  chartCalcSweep.update();
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  INIT ALL
+// ══════════════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  initChartWR();
+  drawHeatmap();
+  initSerpChart();
+  updateSerp();
+  initSolubChart();
+  updateSolubility();
+  initMCCharts();
+  initCalcSweep();
+  updateCalc();
+  // Initial WR slider bg
+  document.getElementById('wr-slider').style.setProperty('--pct', '80%');
+});
+
+window.addEventListener('resize', () => {
+  drawHeatmap();
+});
+</script>
+</body>
+</html>
